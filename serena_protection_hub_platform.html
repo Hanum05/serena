@@ -1,0 +1,1662 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SERENA: Pengembangan Smartband Biometrik Terselubung Berbasis IoT dengan Multiplex Sweat Biosensor</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN for Bio-Monitoring -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Three.js CDN for 3D Visualizer -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        skybrand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Pulse Effect for SOS Simulator */
+        @keyframes hapticPulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.7); }
+            50% { transform: scale(1.03); box-shadow: 0 0 0 15px rgba(225, 29, 72, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); }
+        }
+        .animate-haptic {
+            animation: hapticPulse 1.2s infinite;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #bae6fd;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #38bdf8;
+        }
+    </style>
+</head>
+<body class="bg-skybrand-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-white border-b border-skybrand-200 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo & Branding -->
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-skybrand-600 to-skybrand-400 flex items-center justify-center text-white shadow-md shadow-skybrand-200 shrink-0">
+                        <i class="fa-solid me-0 fa-shield-heart text-xl"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <span class="font-bold text-xl tracking-tight text-skybrand-900">SERENA</span>
+                            <span class="bg-skybrand-100 text-skybrand-700 text-xs px-2 py-0.5 rounded-full font-semibold border border-skybrand-300">PROTECT v2.4</span>
+                        </div>
+                        <p class="text-xs text-slate-500 font-medium">Smartband Biometrik Terselubung Berbasis IoT & Multiplex Sweat Biosensor</p>
+                    </div>
+                </div>
+
+                <!-- Live Device Status Indicator -->
+                <div class="hidden md:flex items-center space-x-6 bg-skybrand-50/80 px-4 py-2 rounded-xl border border-skybrand-100">
+                    <div class="flex items-center space-x-2">
+                        <span class="relative flex h-2.5 w-2.5">
+                          <span id="ping-dot" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span id="status-dot" class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                        </span>
+                        <span id="conn-text" class="text-xs font-semibold text-slate-700">BLE Connected</span>
+                    </div>
+                    <div class="h-4 w-px bg-slate-300"></div>
+                    <div class="flex items-center space-x-1.5 text-xs text-slate-600">
+                        <i class="fa-solid fa-battery-three-quarters text-emerald-600"></i>
+                        <span id="battery-level">84%</span>
+                    </div>
+                    <div class="h-4 w-px bg-slate-300"></div>
+                    <div class="flex items-center space-x-1.5 text-xs text-slate-600">
+                        <i class="fa-solid fa-signal text-skybrand-600"></i>
+                        <span>Sinyal PPG: <strong id="signal-quality" class="text-emerald-600">Optimal (98%)</strong></span>
+                    </div>
+                </div>
+
+                <!-- Simulation Control Center Launch Button -->
+                <div>
+                    <button onclick="toggleModal('sos-simulator-modal')" class="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-md shadow-rose-200 transition flex items-center space-x-2">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span>Simulator Bahaya</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main App Layout -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
+        
+        <!-- Tab Navigation Bar -->
+        <div class="flex space-x-2 border-b border-skybrand-200 mb-6 overflow-x-auto pb-2 scrollbar-none">
+            <button id="tab-btn-dashboard" onclick="switchTab('dashboard')" class="tab-btn bg-skybrand-600 text-white px-4 py-2.5 rounded-xl font-medium text-sm transition flex items-center space-x-2 shadow-sm whitespace-nowrap">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>Bio-Monitoring</span>
+            </button>
+            <button id="tab-btn-alerts" onclick="switchTab('alerts')" class="tab-btn bg-white hover:bg-skybrand-100 text-slate-600 px-4 py-2.5 rounded-xl font-medium text-sm transition flex items-center space-x-2 relative whitespace-nowrap">
+                <i class="fa-solid fa-bell"></i>
+                <span>Peringatan & Emergency</span>
+                <span id="alert-badge" class="bg-rose-500 text-white text-xs px-1.5 py-0.5 rounded-full font-bold">1</span>
+            </button>
+            <button id="tab-btn-cases" onclick="switchTab('cases')" class="tab-btn bg-white hover:bg-skybrand-100 text-slate-600 px-4 py-2.5 rounded-xl font-medium text-sm transition flex items-center space-x-2 whitespace-nowrap">
+                <i class="fa-solid fa-folder-open"></i>
+                <span>Manajemen Kasus</span>
+            </button>
+            <button id="tab-btn-protocol" onclick="switchTab('protocol')" class="tab-btn bg-white hover:bg-skybrand-100 text-slate-600 px-4 py-2.5 rounded-xl font-medium text-sm transition flex items-center space-x-2 whitespace-nowrap">
+                <i class="fa-solid fa-phone-volume"></i>
+                <span>Panduan Respon & Hotline</span>
+            </button>
+            <button id="tab-btn-anatomy" onclick="switchTab('anatomy')" class="tab-btn bg-white hover:bg-skybrand-100 text-slate-600 px-4 py-2.5 rounded-xl font-medium text-sm transition flex items-center space-x-2 whitespace-nowrap">
+                <i class="fa-solid fa-cube"></i>
+                <span>Anatomi & Visual 3D Sensor</span>
+            </button>
+        </div>
+
+        <!-- Notification Bar (Dynamic Alerts) -->
+        <div id="top-notification" class="hidden mb-6 bg-rose-50 border-l-4 border-rose-500 p-4 rounded-r-xl shadow-sm transition">
+            <div class="flex items-start justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2 bg-rose-100 rounded-lg text-rose-600">
+                        <i class="fa-solid fa-circle-exclamation text-xl"></i>
+                    </div>
+                    <div>
+                        <h4 id="notif-title" class="font-bold text-rose-800 text-sm">PERINGATAN SOS AKTIF!</h4>
+                        <p id="notif-desc" class="text-xs text-rose-700">Sinyal SOS tersembunyi terdeteksi dari Smartband ID: SRN-8842 (Siti Rahma - Taipei)</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="switchTab('alerts')" class="text-xs bg-rose-600 hover:bg-rose-700 text-white font-semibold px-3 py-1.5 rounded-lg transition">Lihat Peta & Tangani</button>
+                    <button onclick="dismissNotif()" class="text-rose-400 hover:text-rose-600 p-1"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB CONTENT 1: BIO-MONITORING DASHBOARD ================= -->
+        <div id="tab-dashboard" class="tab-content space-y-6">
+            
+            <!-- User Status & Bio Indicators Summary Header -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <!-- User Profile Card -->
+                <div class="bg-white p-4 rounded-2xl border border-skybrand-200 shadow-sm flex items-center space-x-4">
+                    <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=150" alt="User Avatar" class="w-14 h-14 rounded-full object-cover border-2 border-skybrand-400">
+                    <div>
+                        <span class="text-xs text-skybrand-600 font-semibold uppercase tracking-wider">PMI Terdaftar</span>
+                        <h3 class="font-bold text-slate-800">Siti Rahma</h3>
+                        <p class="text-xs text-slate-500"><i class="fa-solid fa-location-dot text-rose-500 mr-1"></i>Taipei, Taiwan</p>
+                    </div>
+                </div>
+
+                <!-- Heart Rate Live Widget -->
+                <div class="bg-white p-4 rounded-2xl border border-skybrand-200 shadow-sm flex justify-between items-center">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500">Denyut Jantung (PPG)</p>
+                        <div class="flex items-baseline space-x-2 mt-1">
+                            <span id="hr-value" class="text-3xl font-extrabold text-slate-800">74</span>
+                            <span class="text-xs text-slate-500">BPM</span>
+                        </div>
+                        <span class="inline-block mt-1 text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">Normal baseline</span>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-skybrand-100 flex items-center justify-center text-skybrand-600">
+                        <i class="fa-solid fa-heart-pulse text-2xl animate-pulse"></i>
+                    </div>
+                </div>
+
+                <!-- HRV & Stress Index Widget -->
+                <div class="bg-white p-4 rounded-2xl border border-skybrand-200 shadow-sm flex justify-between items-center">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500">HRV & Indeks Stres Akut</p>
+                        <div class="flex items-baseline space-x-2 mt-1">
+                            <span id="hrv-value" class="text-3xl font-extrabold text-slate-800">48</span>
+                            <span class="text-xs text-slate-500">ms</span>
+                            <span id="stress-index-tag" class="text-xs font-bold text-emerald-600 ml-1">(Rendah)</span>
+                        </div>
+                        <span class="inline-block mt-1 text-[10px] bg-skybrand-100 text-skybrand-700 px-2 py-0.5 rounded-full font-medium">Sinyal Memadai</span>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-skybrand-100 flex items-center justify-center text-skybrand-600">
+                        <i class="fa-solid fa-brain text-xl"></i>
+                    </div>
+                </div>
+
+                <!-- Cortisol & Sweat Biomarker Widget -->
+                <div class="bg-white p-4 rounded-2xl border border-skybrand-200 shadow-sm flex justify-between items-center">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500">Kortisol Keringat Kulit</p>
+                        <div class="flex items-baseline space-x-2 mt-1">
+                            <span id="cortisol-value" class="text-3xl font-extrabold text-slate-800">8.2</span>
+                            <span class="text-xs text-slate-500">ng/mL</span>
+                        </div>
+                        <span id="cortisol-status" class="inline-block mt-1 text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">Tingkat Normal</span>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600">
+                        <i class="fa-solid fa-droplet text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Bio-Monitoring Chart Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Bio-Monitoring Graph -->
+                <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-skybrand-200 shadow-sm">
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h3 class="font-bold text-slate-800">Tren Real-Time: PPG, Kortisol & Suhu Kulit</h3>
+                            <p class="text-xs text-slate-500">Pemantauan biomakro multi-sensor terintegrasi (PPG Optical + Sweat Microfluidics).</p>
+                        </div>
+                        <div class="flex space-x-1 bg-skybrand-50 p-1 rounded-lg border border-skybrand-100 text-xs">
+                            <button class="px-2 py-1 bg-white shadow-sm rounded font-medium text-skybrand-700">1 jam</button>
+                            <button class="px-2 py-1 text-slate-600 hover:text-slate-900">24 jam</button>
+                            <button class="px-2 py-1 text-slate-600 hover:text-slate-900">7 hari</button>
+                        </div>
+                    </div>
+                    <div class="h-64 w-full">
+                        <canvas id="bioMetricsChart"></canvas>
+                    </div>
+                    <div class="mt-3 text-[11px] text-slate-400 flex items-center justify-between">
+                        <span><i class="fa-solid fa-circle-info mr-1 text-skybrand-500"></i> Sensor mikrofluidik mengukur fluks kortisol secara kontinu tanpa prosedur invasif.</span>
+                        <span class="font-semibold text-emerald-600"><i class="fa-solid fa-check mr-1"></i>Microfluidic Channel Active</span>
+                    </div>
+                </div>
+
+                <!-- Smartband Device Health Panel -->
+                <div class="bg-white p-5 rounded-2xl border border-skybrand-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <h3 class="font-bold text-slate-800 mb-1">Status Kesehatan Perangkat</h3>
+                        <p class="text-xs text-slate-500 mb-4">Diagnostik hardware & konektivitas smartband SERENA</p>
+
+                        <div class="space-y-4">
+                            <!-- Battery Meter -->
+                            <div>
+                                <div class="flex justify-between text-xs font-semibold mb-1">
+                                    <span class="text-slate-600"><i class="fa-solid fa-battery-three-quarters mr-1 text-emerald-500"></i> Kapasitas Baterai</span>
+                                    <span class="text-slate-800">84%</span>
+                                </div>
+                                <div class="w-full bg-slate-100 rounded-full h-2">
+                                    <div class="bg-emerald-500 h-2 rounded-full" style="width: 84%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Skin Contact & Sensor Status -->
+                            <div class="flex items-center justify-between p-3 bg-skybrand-50/50 rounded-xl border border-skybrand-100">
+                                <div class="flex items-center space-x-3">
+                                    <i class="fa-solid fa-hand-holding-medical text-skybrand-600"></i>
+                                    <div>
+                                        <p class="text-xs font-semibold text-slate-700">Kontak Sensor Kulit</p>
+                                        <p class="text-[11px] text-slate-500">Optimal (Minimal Noise)</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">Baik</span>
+                            </div>
+
+                            <!-- Connectivity Type -->
+                            <div class="flex items-center justify-between p-3 bg-skybrand-50/50 rounded-xl border border-skybrand-100">
+                                <div class="flex items-center space-x-3">
+                                    <i class="fa-solid fa-tower-cell text-skybrand-600"></i>
+                                    <div>
+                                        <p class="text-xs font-semibold text-slate-700">Mode Koneksi Data</p>
+                                        <p class="text-[11px] text-slate-500">BLE Sync via Companion App</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs bg-skybrand-100 text-skybrand-700 font-bold px-2 py-0.5 rounded-full">Aktif</span>
+                            </div>
+
+                            <!-- Buffer / Pending Sync -->
+                            <div class="flex items-center justify-between p-3 bg-skybrand-50/50 rounded-xl border border-skybrand-100">
+                                <div class="flex items-center space-x-3">
+                                    <i class="fa-solid fa-hard-drive text-skybrand-600"></i>
+                                    <div>
+                                        <p class="text-xs font-semibold text-slate-700">Penyimpanan Sementara</p>
+                                        <p class="text-[11px] text-slate-500">0 Kejadian Tertunda</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-full">Clear</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="simulateHapticTest()" class="mt-4 w-full bg-skybrand-100 hover:bg-skybrand-200 text-skybrand-800 text-xs font-semibold py-2.5 rounded-xl border border-skybrand-300 transition flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-vibrate"></i>
+                        <span>Uji Silent Haptic Alert Perangkat</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB CONTENT 2: ALERTS & EMERGENCY MAP ================= -->
+        <div id="tab-alerts" class="tab-content hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Queue Peringatan (Early Warning Queue) -->
+                <div class="bg-white p-5 rounded-2xl border border-skybrand-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-slate-800">Antrean Peringatan Masuk</h3>
+                            <span class="text-xs bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded-full">1 Darurat Active</span>
+                        </div>
+
+                        <!-- Alert Filter Tabs -->
+                        <div class="flex border-b border-slate-200 mb-3 text-xs">
+                            <button class="pb-2 font-semibold text-skybrand-600 border-b-2 border-skybrand-600 pr-3">Semua (2)</button>
+                            <button class="pb-2 text-slate-500 hover:text-slate-800 pr-3">SOS Manual (1)</button>
+                            <button class="pb-2 text-slate-500 hover:text-slate-800">Fisiologis (1)</button>
+                        </div>
+
+                        <!-- Alert List Cards -->
+                        <div class="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                            
+                            <!-- Alert Card 1: SOS Active -->
+                            <div id="alert-card-sos" class="p-3.5 bg-rose-50 border-2 border-rose-300 rounded-xl relative cursor-pointer hover:bg-rose-100/70 transition" onclick="focusOnAlert('sos')">
+                                <div class="flex justify-between items-start mb-1">
+                                    <span class="bg-rose-600 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase">DISCREET SOS</span>
+                                    <span class="text-[11px] text-slate-500 font-medium" id="alert-time-1">Baru Saja</span>
+                                </div>
+                                <h4 class="font-bold text-slate-800 text-sm">Siti Rahma (PMI-8842)</h4>
+                                <p class="text-xs text-slate-600 mt-1"><i class="fa-solid fa-hand-fist text-rose-500 mr-1"></i> Aktivasi Tombol SOS Manual Tersembunyi</p>
+                                <div class="mt-2 flex items-center justify-between text-[11px]">
+                                    <span class="text-rose-700 font-semibold"><i class="fa-solid fa-location-dot mr-1"></i> GPS: Akurat (Daan District)</span>
+                                    <span class="text-slate-500 font-medium">Status: UNVERIFIED</span>
+                                </div>
+                            </div>
+
+                            <!-- Alert Card 2: Bio Warning -->
+                            <div class="p-3.5 bg-skybrand-50 border border-skybrand-200 rounded-xl relative cursor-pointer hover:bg-skybrand-100/50 transition" onclick="focusOnAlert('bio')">
+                                <div class="flex justify-between items-start mb-1">
+                                    <span class="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase">INDIKATOR FISIOLOGIS</span>
+                                    <span class="text-[11px] text-slate-500 font-medium">14 Menit lalu</span>
+                                </div>
+                                <h4 class="font-bold text-slate-800 text-sm">Dewi Lestari (PMI-4410)</h4>
+                                <p class="text-xs text-slate-600 mt-1"><i class="fa-solid fa-heart-crack text-amber-500 mr-1"></i> Anomali: HR Naik + HRV Drop Signifikan</p>
+                                <div class="mt-2 flex items-center justify-between text-[11px]">
+                                    <span class="text-slate-600"><i class="fa-solid fa-clock mr-1"></i> Memerlukan Verifikasi Manual</span>
+                                    <span class="text-slate-500 font-medium">Status: Reviewed</span>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-100">
+                        <button onclick="createCaseFromSOS()" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-semibold py-2.5 rounded-xl text-sm shadow-md transition flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-headset"></i>
+                            <span>Eskalasi SOS Ke Kasus Darurat</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Emergency Location Map Area -->
+                <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-skybrand-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <div>
+                                <h3 class="font-bold text-slate-800">Peta Lokasi Kejadian Darurat</h3>
+                                <p class="text-xs text-slate-500">Visualisasi berbasis GNSS/GPS terbatas saat permintaan bantuan aktif</p>
+                            </div>
+                            <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-lg font-bold border border-emerald-200">
+                                <i class="fa-solid fa-satellite-dish mr-1"></i> GPS Live Lock
+                            </span>
+                        </div>
+
+                        <!-- Simulated Interactive Map Screen -->
+                        <div class="relative w-full h-[360px] bg-slate-100 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center">
+                            <div class="absolute inset-0 opacity-20 bg-[radial-gradient(#0284c7_1px,transparent_1px)] [background-size:16px_16px]"></div>
+                            
+                            <svg class="absolute inset-0 w-full h-full text-skybrand-200/60" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M0,100 Q 150,80 300,180 T 600,200 T 900,100" fill="none" stroke="currentColor" stroke-width="24" />
+                                <path d="M200,0 Q 220,150 250,360" fill="none" stroke="currentColor" stroke-width="16" />
+                                <path d="M450,0 Q 400,200 500,360" fill="none" stroke="currentColor" stroke-width="12" />
+                            </svg>
+
+                            <div class="absolute w-48 h-48 rounded-full border-2 border-dashed border-skybrand-400 bg-skybrand-400/10 flex items-center justify-center pointer-events-none">
+                                <span class="text-[10px] text-skybrand-700 font-bold bg-white/80 px-2 py-0.5 rounded-full shadow-sm">Zona Aman Terdaftar</span>
+                            </div>
+
+                            <div id="map-sos-pin" class="absolute flex flex-col items-center cursor-pointer transition-all duration-500" style="top: 42%; left: 48%;">
+                                <div class="bg-rose-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-lg mb-1 whitespace-nowrap animate-bounce flex items-center space-x-1">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                    <span>Siti Rahma (SOS Sinyal Aktif)</span>
+                                </div>
+                                <div class="relative">
+                                    <div class="w-8 h-8 bg-rose-500 rounded-full flex items-center justify-center text-white shadow-xl animate-ping absolute inset-0 opacity-75"></div>
+                                    <div class="w-8 h-8 bg-rose-600 rounded-full flex items-center justify-center text-white shadow-xl relative z-10 border-2 border-white">
+                                        <i class="fa-solid fa-user-nurse text-xs"></i>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="absolute bottom-3 right-3 bg-white/95 backdrop-blur-md p-3 rounded-xl border border-slate-200 shadow-md text-xs space-y-1 max-w-xs">
+                                <div class="font-bold text-slate-800 flex justify-between">
+                                    <span>Koordinat SOS:</span>
+                                    <span class="text-skybrand-700">25.0330° N, 121.5654° E</span>
+                                </div>
+                                <p class="text-slate-500 text-[11px]">Daan District, Section 4, Xinyi Rd, Taipei City</p>
+                                <p class="text-slate-400 text-[10px]">Akurasi Radius: ± 8 Meter (Sinyal Satelit Bagus)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 bg-skybrand-50 p-3 rounded-xl border border-skybrand-100 flex items-center space-x-3 text-xs text-skybrand-900">
+                        <i class="fa-solid fa-shield-halved text-skybrand-600 text-lg"></i>
+                        <p><strong>Protokol Privasi Lokasi:</strong> Lokasi pengguna <i>hanya</i> ditransmisikan saat tombol SOS diaktifkan. Sistem SERENA tidak melakukan pelacakan lokasi secara terus menerus.</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ================= TAB CONTENT 3: CASE MANAGEMENT ================= -->
+        <div id="tab-cases" class="tab-content hidden space-y-6">
+            
+            <!-- Dashboard Dampak & Indicator Metrics (Baru) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-4 rounded-2xl border border-skybrand-200 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-500">Rata-rata Waktu Respon</span>
+                        <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center text-sm">
+                            <i class="fa-solid fa-stopwatch"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline space-x-2 mt-2">
+                        <span class="text-2xl font-extrabold text-slate-800">4.2</span>
+                        <span class="text-xs text-slate-500">Menit</span>
+                        <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">↓ 18% Lebih Cepat</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-1">SLA Target: &lt; 10 Menit</p>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-skybrand-200 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-500">Kasus Berhasil Ditangani</span>
+                        <div class="w-8 h-8 rounded-lg bg-skybrand-100 text-skybrand-600 flex items-center justify-center text-sm">
+                            <i class="fa-solid fa-user-shield"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline space-x-2 mt-2">
+                        <span class="text-2xl font-extrabold text-slate-800">142</span>
+                        <span class="text-xs text-slate-500">PMI</span>
+                        <span class="text-[10px] font-bold text-skybrand-600 bg-skybrand-50 px-1.5 py-0.5 rounded">Tahun 2026</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-1">Rate Keberhasilan Penyelamatan: 98.6%</p>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-skybrand-200 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-500">Eskalasi Restitusi & Hukum</span>
+                        <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center text-sm">
+                            <i class="fa-solid fa-gavel"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline space-x-2 mt-2">
+                        <span class="text-2xl font-extrabold text-slate-800">38</span>
+                        <span class="text-xs text-slate-500">Berkas Medis/Biometrik</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-1">Digunakan sebagai Alat Bukti Sah Sahih</p>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-skybrand-200 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-500">Kapasitas Shelter Aktif</span>
+                        <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center text-sm">
+                            <i class="fa-solid fa-house-chimney-medical"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline space-x-2 mt-2">
+                        <span class="text-2xl font-extrabold text-slate-800">18 / 45</span>
+                        <span class="text-xs text-slate-500">Bed Terisi</span>
+                    </div>
+                    <p class="text-[11px] text-amber-600 font-medium mt-1"><i class="fa-solid fa-circle-check"></i> Siap Menampung Rujukan Baru</p>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl border border-skybrand-200 shadow-sm">
+                <div class="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
+                    <div>
+                        <h3 class="font-bold text-lg text-slate-800">Manajemen Kasus Berdampak & Tracking Penjangkauan</h3>
+                        <p class="text-xs text-slate-500">Dokumentasi terpadu log bukti biometrik, bantuan hukum, perlindungan shelter, dan integrasi antar instansi</p>
+                    </div>
+                    <button onclick="createNewCaseModal()" class="bg-skybrand-600 hover:bg-skybrand-700 text-white font-semibold px-4 py-2 rounded-xl text-sm shadow-md transition flex items-center space-x-2 self-start md:self-auto">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Buat Kasus Baru</span>
+                    </button>
+                </div>
+
+                <div class="flex flex-col md:flex-row gap-3 mb-4 text-xs">
+                    <input type="text" placeholder="Cari ID Kasus, Nama PMI, NIK/Paspor, atau Petugas..." class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 w-full md:w-72 focus:outline-none focus:ring-2 focus:ring-skybrand-400">
+                    <select class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-skybrand-400">
+                        <option>Semua Status Penanganan</option>
+                        <option>Diterima (Sinyal Terdeteksi)</option>
+                        <option>Diverifikasi (Tim Bergerak)</option>
+                        <option>Evakuasi Ke Shelter</option>
+                        <option>Pendampingan Hukum & Restitusi</option>
+                        <option>Selesai & Pemulihan Mandiri</option>
+                    </select>
+                    <select class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-skybrand-400">
+                        <option>Tingkat Dampak / Risiko</option>
+                        <option>Tinggi (Darurat Fisik/Kekerasan)</option>
+                        <option>Sedang (Stres Fisiologis Akut)</option>
+                        <option>Rendah (Pencegahan)</option>
+                    </select>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl border border-slate-200">
+                    <table class="w-full text-left text-xs text-slate-600">
+                        <thead class="bg-skybrand-50 text-slate-700 font-bold border-b border-slate-200">
+                            <tr>
+                                <th class="p-3">NO. KASUS & WAKTU</th>
+                                <th class="p-3">IDENTITAS PMI & LOKASI</th>
+                                <th class="p-3">INDIKATOR BUKTI BIOMETRIK</th>
+                                <th class="p-3">TIM RESPON / SHELTER</th>
+                                <th class="p-3">STATUS & ALUR DAMPAK</th>
+                                <th class="p-3">AKSI & BERKAS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="case-table-body" class="divide-y divide-slate-100">
+                            <tr class="hover:bg-slate-50/80 transition">
+                                <td class="p-3">
+                                    <div class="font-bold text-skybrand-700">#CAS-2026-0891</div>
+                                    <div class="text-[10px] text-slate-400">23 Okt 2026, 08:42 WIB</div>
+                                </td>
+                                <td class="p-3">
+                                    <div class="font-semibold text-slate-800">Siti Rahma</div>
+                                    <div class="text-[11px] text-slate-500"><i class="fa-solid fa-location-dot text-rose-500 mr-1"></i>Daan District, Taipei</div>
+                                </td>
+                                <td class="p-3">
+                                    <span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-semibold text-[10px] block w-max">SOS MANUAL + KORTISOL 22.8</span>
+                                    <span class="text-[10px] text-slate-400 mt-0.5 block">Log Sensor Termuat (2.4 MB)</span>
+                                </td>
+                                <td class="p-3">
+                                    <div class="font-medium text-slate-700">Rina W. (Shelter KDEI)</div>
+                                    <div class="text-[10px] text-emerald-600 font-semibold"><i class="fa-solid fa-car-side mr-1"></i>Tim On The Way (8 min)</div>
+                                </td>
+                                <td class="p-3">
+                                    <span class="bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full font-bold text-[10px] inline-flex items-center">
+                                        <i class="fa-solid fa-spinner animate-spin mr-1"></i> Penjangkauan Lapangan
+                                    </span>
+                                </td>
+                                <td class="p-3">
+                                    <button onclick="viewCaseDetail('CAS-2026-0891')" class="text-skybrand-600 hover:text-skybrand-800 font-bold hover:underline block">Detail & Rekam Medis</button>
+                                </td>
+                            </tr>
+                            <tr class="hover:bg-slate-50/80 transition">
+                                <td class="p-3">
+                                    <div class="font-bold text-skybrand-700">#CAS-2026-0842</div>
+                                    <div class="text-[10px] text-slate-400">19 Okt 2026, 14:15 WIB</div>
+                                </td>
+                                <td class="p-3">
+                                    <div class="font-semibold text-slate-800">Dewi Lestari</div>
+                                    <div class="text-[11px] text-slate-500"><i class="fa-solid fa-location-dot text-amber-500 mr-1"></i>Taichung City</div>
+                                </td>
+                                <td class="p-3">
+                                    <span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-semibold text-[10px] block w-max">ANOMALI STRES AKUT</span>
+                                    <span class="text-[10px] text-slate-400 mt-0.5 block">HRV Drop 16ms</span>
+                                </td>
+                                <td class="p-3">
+                                    <div class="font-medium text-slate-700">Budi Santoso (NGO Taichung)</div>
+                                    <div class="text-[10px] text-slate-400">Shelter Kasih PMI</div>
+                                </td>
+                                <td class="p-3">
+                                    <span class="bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full font-bold text-[10px]">
+                                        <i class="fa-solid fa-shield-check mr-1"></i> Relokasi Aman & Selesai
+                                    </span>
+                                </td>
+                                <td class="p-3">
+                                    <button onclick="viewCaseDetail('CAS-2026-0842')" class="text-skybrand-600 hover:text-skybrand-800 font-bold hover:underline block">Lihat Laporan Akhir</button>
+                                </td>
+                            </tr>
+                            <tr class="hover:bg-slate-50/80 transition">
+                                <td class="p-3">
+                                    <div class="font-bold text-skybrand-700">#CAS-2026-0790</div>
+                                    <div class="text-[10px] text-slate-400">12 Okt 2026, 21:05 WIB</div>
+                                </td>
+                                <td class="p-3">
+                                    <div class="font-semibold text-slate-800">Nur Aini</div>
+                                    <div class="text-[11px] text-slate-500"><i class="fa-solid fa-location-dot text-rose-500 mr-1"></i>Kaohsiung City</div>
+                                </td>
+                                <td class="p-3">
+                                    <span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-semibold text-[10px] block w-max">PEMUKULAN / SOS TEKAN</span>
+                                    <span class="text-[10px] text-slate-400 mt-0.5 block">Bukti Biometrik Diterima Kepolisian</span>
+                                </td>
+                                <td class="p-3">
+                                    <div class="font-medium text-slate-700">LBH Perlindungan Wanita</div>
+                                    <div class="text-[10px] text-slate-400">Pengacara Terkoordinasi</div>
+                                </td>
+                                <td class="p-3">
+                                    <span class="bg-purple-100 text-purple-800 px-2.5 py-1 rounded-full font-bold text-[10px]">
+                                        <i class="fa-solid fa-gavel mr-1"></i> Proses Restitusi Legal
+                                    </span>
+                                </td>
+                                <td class="p-3">
+                                    <button onclick="viewCaseDetail('CAS-2026-0790')" class="text-skybrand-600 hover:text-skybrand-800 font-bold hover:underline block">Arsip Bantuan Hukum</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB CONTENT 4: PROTOKOL RESPON, HOTLINE LENGKAP & TIPS TAKTIS ================= -->
+        <div id="tab-protocol" class="tab-content hidden space-y-6">
+            
+            <!-- Banner Utama Protokol -->
+            <div class="bg-gradient-to-r from-skybrand-900 via-skybrand-800 to-skybrand-900 text-white p-6 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <span class="bg-rose-500/30 text-rose-200 text-xs px-2.5 py-1 rounded-lg font-semibold uppercase tracking-wider border border-rose-400/30">Pusat Bantuan & Respon Cepat</span>
+                    <h3 class="text-xl font-bold mt-1">Direktori Hotline Darurat, Shelter & Tips Taktis Lapangan</h3>
+                    <p class="text-xs text-skybrand-100 max-w-2xl mt-1">
+                        Akses jaringan perlindungan terpadu untuk Tenaga Kerja Migran Perempuan (TKMP/PMI). Dilengkapi direktori kontak darurat, lokasi shelter aman, dan standar panduan intervensi senyap.
+                    </p>
+                </div>
+                <div class="flex items-center space-x-2 bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/20 shrink-0">
+                    <i class="fa-solid fa-headset text-amber-300 text-2xl"></i>
+                    <div class="text-xs">
+                        <p class="font-bold text-white">Status Hotline</p>
+                        <p class="text-emerald-300 font-semibold"><i class="fa-solid fa-circle text-[8px] mr-1"></i>24/7 Siaga Intervensi</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- KUMPULAN HOTLINE LENGKAP & SHELTER (2 KOLEKSI KOLOM) -->
+                <div class="lg:col-span-2 space-y-6">
+                    
+                    <!-- Sub-section 1: Perwakilan RI & Hotline Pemerintah -->
+                    <div class="bg-white p-5 rounded-2xl border border-skybrand-200 shadow-sm space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center text-lg">
+                                    <i class="fa-solid fa-flag-usa"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-slate-800 text-base">Hotline Darurat Otoritas & Perwakilan RI</h3>
+                                    <p class="text-xs text-slate-500">Panggilan darurat utama dengan jaminan pendampingan konsuler resmi</p>
+                                </div>
+                            </div>
+                            <span class="text-[10px] bg-rose-100 text-rose-700 font-bold px-2 py-1 rounded-md">Prioritas 1</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <!-- Contact Card 1 -->
+                            <div class="p-3.5 bg-rose-50/70 border border-rose-200 rounded-xl flex items-center justify-between">
+                                <div>
+                                    <span class="text-[10px] font-bold text-rose-700 uppercase">KDEI TAIPEI (TAIWAN)</span>
+                                    <h4 class="font-bold text-xs text-slate-800 mt-0.5">Emergency Call Konsuler</h4>
+                                    <p class="text-xs text-rose-900 font-bold mt-1"><i class="fa-solid fa-phone mr-1"></i>+886 932 232 957</p>
+                                    <span class="text-[10px] text-slate-500 block mt-0.5">Layanan 24 Jam Bantuan PMI</span>
+                                </div>
+                                <button onclick="triggerCall('KDEI Taipei', '+886932232957')" class="bg-rose-600 hover:bg-rose-700 text-white p-2.5 rounded-xl shadow transition">
+                                    <i class="fa-solid fa-phone-flip text-sm"></i>
+                                </button>
+                            </div>
+
+                            <!-- Contact Card 2 -->
+                            <div class="p-3.5 bg-skybrand-50/70 border border-skybrand-200 rounded-xl flex items-center justify-between">
+                                <div>
+                                    <span class="text-[10px] font-bold text-skybrand-700 uppercase">BP2MI RI (INDONESIA)</span>
+                                    <h4 class="font-bold text-xs text-slate-800 mt-0.5">Call Center Pengaduan PMI</h4>
+                                    <p class="text-xs text-skybrand-900 font-bold mt-1"><i class="fa-solid fa-phone mr-1"></i>+62 811 8000 012</p>
+                                    <span class="text-[10px] text-slate-500 block mt-0.5">Bantuan Bebas Pulsa / WA</span>
+                                </div>
+                                <button onclick="triggerCall('BP2MI Call Center', '+628118000012')" class="bg-skybrand-600 hover:bg-skybrand-700 text-white p-2.5 rounded-xl shadow transition">
+                                    <i class="fa-solid fa-phone-flip text-sm"></i>
+                                </button>
+                            </div>
+
+                            <!-- Contact Card 3 -->
+                            <div class="p-3.5 bg-skybrand-50/70 border border-skybrand-200 rounded-xl flex items-center justify-between">
+                                <div>
+                                    <span class="text-[10px] font-bold text-skybrand-700 uppercase">HOTLINE PERLINDUNGAN TAIWAN</span>
+                                    <h4 class="font-bold text-xs text-slate-800 mt-0.5">Layanan 1955 (Multi-Bahasa)</h4>
+                                    <p class="text-xs text-skybrand-900 font-bold mt-1"><i class="fa-solid fa-headset mr-1"></i>1955 (Akses Lokal)</p>
+                                    <span class="text-[10px] text-slate-500 block mt-0.5">Tersedia Bahasa Indonesia</span>
+                                </div>
+                                <button onclick="triggerCall('Hotline 1955 Taiwan', '1955')" class="bg-skybrand-600 hover:bg-skybrand-700 text-white p-2.5 rounded-xl shadow transition">
+                                    <i class="fa-solid fa-phone-flip text-sm"></i>
+                                </button>
+                            </div>
+
+                            <!-- Contact Card 4 -->
+                            <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+                                <div>
+                                    <span class="text-[10px] font-bold text-slate-600 uppercase">KEPOLISIAN LOKAL TAIWAN</span>
+                                    <h4 class="font-bold text-xs text-slate-800 mt-0.5">Emergency Police Direct</h4>
+                                    <p class="text-xs text-slate-900 font-bold mt-1"><i class="fa-solid fa-shield-cat mr-1"></i>110 / Ambulance: 119</p>
+                                    <span class="text-[10px] text-slate-500 block mt-0.5">Intervensi Kejahatan Fisik</span>
+                                </div>
+                                <button onclick="triggerCall('Polisi Taiwan', '110')" class="bg-slate-700 hover:bg-slate-800 text-white p-2.5 rounded-xl shadow transition">
+                                    <i class="fa-solid fa-phone-flip text-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sub-section 2: Direktori Shelter Aman & Mitra NGO -->
+                    <div class="bg-white p-5 rounded-2xl border border-skybrand-200 shadow-sm space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center text-lg">
+                                    <i class="fa-solid fa-house-chimney-window"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-slate-800 text-base">Direktori Shelter Aman & Rujukan Pendampingan</h3>
+                                    <p class="text-xs text-slate-500">Rumah aman sementara, pendampingan psikologis, dan bantuan hukum legal</p>
+                                </div>
+                            </div>
+                            <span class="text-[10px] bg-purple-100 text-purple-700 font-bold px-2 py-1 rounded-md">Tempat Perlindungan</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                            <!-- Shelter Card 1 -->
+                            <div class="p-3.5 bg-purple-50/50 border border-purple-200 rounded-xl space-y-2">
+                                <div class="flex justify-between items-start">
+                                    <h5 class="font-bold text-purple-900 text-xs">Shelter KDEI Taipei</h5>
+                                    <span class="bg-emerald-100 text-emerald-800 text-[9px] font-bold px-1.5 py-0.5 rounded">Tersedia 12 Bed</span>
+                                </div>
+                                <p class="text-[11px] text-slate-600"><i class="fa-solid fa-location-dot text-purple-600 mr-1"></i>Neihu District, Taipei City</p>
+                                <p class="text-[10px] text-slate-500">Fasilitas: Konseling Psikologis, Bantuan Dokumen, Makanan Sehat.</p>
+                                <button onclick="triggerCall('Shelter KDEI Taipei', '+886226588822')" class="w-full mt-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-1.5 rounded-lg transition flex items-center justify-center space-x-1 text-[11px]">
+                                    <i class="fa-solid fa-phone text-[10px]"></i>
+                                    <span>Hubungi Manager Shelter</span>
+                                </button>
+                            </div>
+
+                            <!-- Shelter Card 2 -->
+                            <div class="p-3.5 bg-skybrand-50/50 border border-skybrand-200 rounded-xl space-y-2">
+                                <div class="flex justify-between items-start">
+                                    <h5 class="font-bold text-skybrand-900 text-xs">SPA (Serve People Association)</h5>
+                                    <span class="bg-emerald-100 text-emerald-800 text-[9px] font-bold px-1.5 py-0.5 rounded">Tersedia 8 Bed</span>
+                                </div>
+                                <p class="text-[11px] text-slate-600"><i class="fa-solid fa-location-dot text-skybrand-600 mr-1"></i>Taoyuan City</p>
+                                <p class="text-[10px] text-slate-500">Fasilitas: Pendampingan Hukum Kasus Restitusi & Kekerasan Labora.</p>
+                                <button onclick="triggerCall('SPA Shelter Taoyuan', '+88633395522')" class="w-full mt-1 bg-skybrand-600 hover:bg-skybrand-700 text-white font-semibold py-1.5 rounded-lg transition flex items-center justify-center space-x-1 text-[11px]">
+                                    <i class="fa-solid fa-phone text-[10px]"></i>
+                                    <span>Hubungi NGO SPA</span>
+                                </button>
+                            </div>
+
+                            <!-- Shelter Card 3 -->
+                            <div class="p-3.5 bg-amber-50/50 border border-amber-200 rounded-xl space-y-2">
+                                <div class="flex justify-between items-start">
+                                    <h5 class="font-bold text-amber-900 text-xs">TIWA (Taiwan International Workers)</h5>
+                                    <span class="bg-emerald-100 text-emerald-800 text-[9px] font-bold px-1.5 py-0.5 rounded">Tersedia 5 Bed</span>
+                                </div>
+                                <p class="text-[11px] text-slate-600"><i class="fa-solid fa-location-dot text-amber-600 mr-1"></i>Zhongshan Dist, Taipei</p>
+                                <p class="text-[10px] text-slate-500">Fasilitas: Penerjemah Bahasa, Bantuan Advokasi Hak Hak PMI.</p>
+                                <button onclick="triggerCall('TIWA Taiwan', '+886225956858')" class="w-full mt-1 bg-amber-600 hover:bg-amber-700 text-white font-semibold py-1.5 rounded-lg transition flex items-center justify-center space-x-1 text-[11px]">
+                                    <i class="fa-solid fa-phone text-[10px]"></i>
+                                    <span>Hubungi TIWA</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- TIPS TAKTIS & PANDUAN LAPANGAN (KOLOM KANAN) -->
+                <div class="space-y-6">
+                    
+                    <!-- Card Tips & Trik Taktis -->
+                    <div class="bg-white p-5 rounded-2xl border border-skybrand-200 shadow-sm space-y-4">
+                        <div class="flex items-center space-x-2 border-b border-slate-100 pb-3">
+                            <i class="fa-solid fa-lightbulb text-amber-500 text-xl"></i>
+                            <h3 class="font-bold text-slate-800 text-base">Tips & Trik Taktis Komunikasi Lapangan</h3>
+                        </div>
+
+                        <div class="space-y-3 text-xs">
+                            <!-- Tip 1 -->
+                            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                                <div class="font-bold text-slate-800 flex items-center justify-between">
+                                    <span><i class="fa-solid fa-volume-xmark text-rose-500 mr-1.5"></i> 1. Mode Discreet Listening</span>
+                                    <span class="text-[9px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-bold">Penting</span>
+                                </div>
+                                <p class="text-slate-600 text-[11px]">
+                                    Saat menelepon PMI yang memicu SOS, **jangan langsung berbicara keras**. Dengarkan suara latar belakang (*background noise*) selama 10-15 detik untuk memastikan tidak ada bahaya aktif di dekat korban.
+                                </p>
+                            </div>
+
+                            <!-- Tip 2 -->
+                            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                                <div class="font-bold text-slate-800 flex items-center justify-between">
+                                    <span><i class="fa-solid fa-code text-skybrand-600 mr-1.5"></i> 2. Kata Kunci Terselubung (Code Words)</span>
+                                </div>
+                                <p class="text-slate-600 text-[11px]">
+                                    Gunakan pertanyaan ambigu jika pelaku dicurigai berada di dekat PMI. Contoh: *"Apakah paket pesanan makanan Anda sudah tiba?"* (Jawaban "Ya" = Terancam, "Tidak" = Aman untuk bicara).
+                                </p>
+                            </div>
+
+                            <!-- Tip 3 -->
+                            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                                <div class="font-bold text-slate-800 flex items-center justify-between">
+                                    <span><i class="fa-solid fa-shield-halved text-emerald-600 mr-1.5"></i> 3. Amankan Bukti Biometrik</span>
+                                </div>
+                                <p class="text-slate-600 text-[11px]">
+                                    Gunakan fitur *Export Telemetry Log* di dashboard ini secara berkala. Data lonjakan Kortisol & PPG bersumber waktu presisi (*timestamped*) sah diakui pengadilan lokal sebagai bukti trauma fisik/mental.
+                                </p>
+                            </div>
+
+                            <!-- Tip 4 -->
+                            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                                <div class="font-bold text-slate-800 flex items-center justify-between">
+                                    <span><i class="fa-solid fa-user-ninja text-purple-600 mr-1.5"></i> 4. Penjangkauan Tanpa Atribut Resmi</span>
+                                </div>
+                                <p class="text-slate-600 text-[11px]">
+                                    Tim penjangkauan pertama ke majikan/lokasi sebaiknya berpakaian kasual (bukan seragam) untuk mencegah majikan menyembunyikan PMI atau merusak smartband.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SOP Interactive Checklist Card -->
+                    <div class="bg-white p-5 rounded-2xl border border-skybrand-200 shadow-sm space-y-4">
+                        <h4 class="font-bold text-slate-800 text-xs flex items-center space-x-1.5">
+                            <i class="fa-solid fa-list-check text-skybrand-600"></i>
+                            <span>Checklist Intervensi Cepat Petugas</span>
+                        </h4>
+
+                        <div class="space-y-2 text-xs">
+                            <label class="flex items-start space-x-2 p-2 bg-slate-50 rounded-lg border border-slate-200 cursor-pointer">
+                                <input type="checkbox" id="sop-1" class="mt-0.5 rounded text-skybrand-600">
+                                <span>1. Verifikasi Koordinat GPS & Sinyal Kortisol</span>
+                            </label>
+                            <label class="flex items-start space-x-2 p-2 bg-slate-50 rounded-lg border border-slate-200 cursor-pointer">
+                                <input type="checkbox" id="sop-2" class="mt-0.5 rounded text-skybrand-600">
+                                <span>2. Kontak Silent Listening ke Perangkat PMI</span>
+                            </label>
+                            <label class="flex items-start space-x-2 p-2 bg-slate-50 rounded-lg border border-slate-200 cursor-pointer">
+                                <input type="checkbox" id="sop-3" class="mt-1 rounded text-skybrand-600">
+                                <span>3. Buka ID Kasus Baru di Tab Manajemen Kasus</span>
+                            </label>
+                            <label class="flex items-start space-x-2 p-2 bg-slate-50 rounded-lg border border-slate-200 cursor-pointer">
+                                <input type="checkbox" id="sop-4" class="mt-1 rounded text-skybrand-600">
+                                <span>4. Disposisi Tim Lapangan / Kirim Rujukan Shelter</span>
+                            </label>
+                        </div>
+
+                        <button onclick="resetSOPChecklist()" class="w-full text-center text-[11px] text-skybrand-600 hover:underline font-semibold pt-1">
+                            Reset Checklist Intervensi
+                        </button>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ================= TAB CONTENT 5: ANATOMY & INTERACTIVE 3D BIOSENSOR ================= -->
+        <div id="tab-anatomy" class="tab-content hidden space-y-6">
+            
+            <!-- Header Banner -->
+            <div class="bg-gradient-to-r from-skybrand-900 to-skybrand-700 text-white p-6 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <span class="bg-skybrand-500/30 text-skybrand-200 text-xs px-2.5 py-1 rounded-lg font-semibold uppercase tracking-wider border border-skybrand-400/30">Arsitektur Perangkat Medis & Simulation</span>
+                    <h3 class="text-xl font-bold mt-1">SERENA: Smartband Biometrik Terselubung Berbasis IoT</h3>
+                    <p class="text-xs text-skybrand-100 max-w-2xl mt-1">
+                        Sistem IoT dengan Multiplex Sweat Biosensor untuk deteksi dini stres akut dan perlindungan darurat bagi Tenaga Kerja Migran Perempuan (TKMP/PMI).
+                    </p>
+                </div>
+                <div class="flex items-center space-x-2 bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/20">
+                    <i class="fa-solid fa-cube text-skybrand-300 text-2xl animate-spin"></i>
+                    <div class="text-xs">
+                        <p class="font-bold">3D Visual Engine</p>
+                        <p class="text-skybrand-200">Enhanced 3D Annotations</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Interactive Hardware & Medical Breakdown -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- 3D Viewer Interactive Window -->
+                <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-skybrand-200 shadow-sm space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h4 class="font-bold text-slate-800 flex items-center space-x-2">
+                            <i class="fa-solid fa-cubes text-skybrand-600"></i>
+                            <span>Visualisasi 3D Detail Dengan Panah Komponen</span>
+                        </h4>
+                        <span class="text-[11px] bg-skybrand-50 text-skybrand-700 font-semibold px-2.5 py-1 rounded-lg border border-skybrand-200">
+                            <i class="fa-solid fa-arrows-spin mr-1"></i>Klik & Drag untuk Rotasi 360°
+                        </span>
+                    </div>
+
+                    <!-- 3D Canvas Container -->
+                    <div class="relative w-full h-[420px] bg-slate-950 rounded-xl overflow-hidden shadow-inner flex items-center justify-center border border-slate-800">
+                        <canvas id="threeCanvas" class="w-full h-full cursor-grab active:cursor-grabbing"></canvas>
+                        
+                        <!-- Overlay Hotspot Controls -->
+                        <div class="absolute top-3 left-3 bg-slate-900/85 backdrop-blur-md p-3 rounded-xl border border-slate-700 text-white text-xs space-y-2 max-w-xs shadow-xl">
+                            <p class="font-bold text-skybrand-300 text-[11px] uppercase tracking-wider flex items-center">
+                                <i class="fa-solid fa-location-arrow mr-1 text-skybrand-400"></i> Panah Penunjuk Komponen:
+                            </p>
+                            <div class="flex flex-col gap-1.5">
+                                <button onclick="focus3DComponent('sos')" class="bg-rose-600/90 hover:bg-rose-600 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-left transition flex items-center justify-between border border-rose-400/30">
+                                    <span><i class="fa-solid fa-arrow-right mr-1.5 text-rose-300"></i> Tombol SOS Tersembunyi</span>
+                                    <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                                </button>
+                                <button onclick="focus3DComponent('micro')" class="bg-purple-600/90 hover:bg-purple-600 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-left transition flex items-center justify-between border border-purple-400/30">
+                                    <span><i class="fa-solid fa-arrow-right mr-1.5 text-purple-300"></i> Kanal Mikrofluidik (Kortisol)</span>
+                                    <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                                </button>
+                                <button onclick="focus3DComponent('ppg')" class="bg-emerald-600/90 hover:bg-emerald-600 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-left transition flex items-center justify-between border border-emerald-400/30">
+                                    <span><i class="fa-solid fa-arrow-right mr-1.5 text-emerald-300"></i> Sensor Optik PPG (Jantung/HRV)</span>
+                                    <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                                </button>
+                                <button onclick="reset3DView()" class="bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg text-[11px] font-medium text-center transition text-slate-200 mt-0.5">
+                                    <i class="fa-solid fa-rotate-left mr-1"></i> Reset Sudut Pandang
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Info Floating Box -->
+                        <div id="3d-info-box" class="absolute bottom-3 right-3 bg-slate-900/90 backdrop-blur-md p-3.5 rounded-xl border border-slate-700 text-white text-xs max-w-xs shadow-xl transition-all">
+                            <h5 id="3d-info-title" class="font-bold text-skybrand-400 text-sm flex items-center">
+                                <i class="fa-solid fa-circle-info mr-1.5"></i> Model Anatomi 3D & Panah Penunjuk
+                            </h5>
+                            <p id="3d-info-desc" class="text-[11px] text-slate-300 mt-1 leading-relaxed">
+                                Putar model 3D menggunakan mouse/sentuhan. Panah-panah penunjuk berwarna dengan teks 3D secara presisi mengarahkan ke bagian biosensor dan komponen fisik smartband.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Process Flow Diagram -->
+                    <div class="pt-2">
+                        <h5 class="font-bold text-xs text-slate-800 mb-3 flex items-center space-x-1.5">
+                            <i class="fa-solid fa-diagram-project text-skybrand-600"></i>
+                            <span>Alur Proses Deteksi & Pengolahan Sinyal Biometrik:</span>
+                        </h5>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-2 text-center text-xs">
+                            <div class="p-2.5 bg-skybrand-50 rounded-xl border border-skybrand-100">
+                                <div class="w-6 h-6 rounded-full bg-skybrand-600 text-white flex items-center justify-center mx-auto mb-1 text-[10px] font-bold">1</div>
+                                <p class="font-bold text-slate-800 text-[11px]">Sensing Kulit</p>
+                                <p class="text-[10px] text-slate-500 mt-0.5">Penyerap mikrofluidik & gelombang PPG</p>
+                            </div>
+                            <div class="p-2.5 bg-purple-50 rounded-xl border border-purple-100">
+                                <div class="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center mx-auto mb-1 text-[10px] font-bold">2</div>
+                                <p class="font-bold text-slate-800 text-[11px]">Ekstraksi Biometrik</p>
+                                <p class="text-[10px] text-slate-500 mt-0.5">Hitung fluks Kortisol & variabilitas HRV</p>
+                            </div>
+                            <div class="p-2.5 bg-amber-50 rounded-xl border border-amber-100">
+                                <div class="w-6 h-6 rounded-full bg-amber-600 text-white flex items-center justify-center mx-auto mb-1 text-[10px] font-bold">3</div>
+                                <p class="font-bold text-slate-800 text-[11px]">Validasi Ambang Risk</p>
+                                <p class="text-[10px] text-slate-500 mt-0.5">Analisis skor stres vs baseline personal</p>
+                            </div>
+                            <div class="p-2.5 bg-rose-50 rounded-xl border border-rose-100">
+                                <div class="w-6 h-6 rounded-full bg-rose-600 text-white flex items-center justify-center mx-auto mb-1 text-[10px] font-bold">4</div>
+                                <p class="font-bold text-slate-800 text-[11px]">Transmisi Sinyal</p>
+                                <p class="text-[10px] text-slate-500 mt-0.5">Getar haptic senyap + Kirim SOS Ke Hub</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Penjelasan Medis & Kesehatan Mental -->
+                <div class="bg-white p-5 rounded-2xl border border-skybrand-200 shadow-sm space-y-4">
+                    <h4 class="font-bold text-slate-800 flex items-center space-x-2">
+                        <i class="fa-solid fa-brain text-skybrand-600"></i>
+                        <span>Indikator Biometrik Medis</span>
+                    </h4>
+                    <p class="text-xs text-slate-500">Ringkasan biomarker fisiologis yang diukur secara real-time:</p>
+
+                    <div class="space-y-3">
+                        <!-- Marker 1: Cortisol -->
+                        <div class="p-3 bg-purple-50/60 border border-purple-200 rounded-xl space-y-1">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs font-bold text-purple-900 flex items-center">
+                                    <i class="fa-solid fa-droplet text-purple-600 mr-1.5"></i> Hormon Kortisol Keringat
+                                </span>
+                            </div>
+                            <p class="text-[11px] text-slate-600">
+                                Terdeteksi dari kelenjar Keringat. Nilai &gt;20.0 ng/mL mengindikasikan tekanan stres emosional akut secara konstan.
+                            </p>
+                        </div>
+
+                        <!-- Marker 2: HRV -->
+                        <div class="p-3 bg-skybrand-50/60 border border-skybrand-200 rounded-xl space-y-1">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs font-bold text-skybrand-900 flex items-center">
+                                    <i class="fa-solid fa-heart-pulse text-skybrand-600 mr-1.5"></i> Variabilitas Detak (HRV)
+                                </span>
+                            </div>
+                            <p class="text-[11px] text-slate-600">
+                                Penurunan drastis (&lt;20 ms) merupakan pertanda dominasi saraf simpatik akibat ketakutan atau kondisi panik mendadak.
+                            </p>
+                        </div>
+
+                        <!-- Marker 3: Galvanic Skin / Temp -->
+                        <div class="p-3 bg-amber-50/60 border border-amber-200 rounded-xl space-y-1">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs font-bold text-amber-900 flex items-center">
+                                    <i class="fa-solid fa-temperature-three-quarters text-amber-600 mr-1.5"></i> Respon Suhu Kulit
+                                </span>
+                            </div>
+                            <p class="text-[11px] text-slate-600">
+                                Penyempitan pembuluh darah tepi membuat kulit mendingin saat terancam (*fight-or-flight response*).
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Medical Protocol Footer Notice -->
+                    <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1 text-slate-600">
+                        <div class="font-bold text-slate-800 flex items-center space-x-1.5">
+                            <i class="fa-solid fa-user-doctor text-skybrand-600"></i>
+                            <span>Prinsip Perangkat Dini:</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500">
+                            Fungsi utama smartband adalah **deteksi risiko awal & perlindungan fisik tersembunyi**, bukan pengobatan mandiri tanpa pengawasan medis profesional.
+                        </p>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ================= MODAL: SOS HAZARD SIMULATOR ================= -->
+    <div id="sos-simulator-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-rose-100 relative overflow-hidden">
+            <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center">
+                        <i class="fa-solid fa-vibrate"></i>
+                    </div>
+                    <h3 class="font-bold text-slate-800 text-base">Simulator Bahaya Smartband</h3>
+                </div>
+                <button onclick="toggleModal('sos-simulator-modal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <p class="text-xs text-slate-600 mb-5">
+                Gunakan simulator ini untuk menguji bagaimana sistem merespon ketika terjadi bahaya atau kecenderungan emosional/fisiologis di lapangan.
+            </p>
+
+            <!-- Simulator Trigger Actions -->
+            <div class="space-y-3">
+                
+                <!-- Action 1: Silent SOS Push -->
+                <button onclick="triggerSOSAction()" class="w-full p-4 bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white rounded-2xl shadow-lg shadow-rose-200 transition text-left flex items-center justify-between group">
+                    <div>
+                        <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded font-bold uppercase tracking-wider">Simulasi 1</span>
+                        <h4 class="font-bold text-sm mt-0.5">Tekan Tombol SOS Tersembunyi (Manual)</h4>
+                        <p class="text-xs text-rose-100">Smartband bergetar senyap (Haptic), mengirim titik GPS & membuka sinyal bahaya.</p>
+                    </div>
+                    <i class="fa-solid fa-hand-pointer text-2xl opacity-80 group-hover:scale-110 transition-transform"></i>
+                </button>
+
+                <!-- Action 2: Bio Anomaly Simulation (Termasuk Kortisol) -->
+                <button onclick="triggerBioAnomalyAction()" class="w-full p-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-2xl shadow-lg shadow-amber-200 transition text-left flex items-center justify-between group">
+                    <div>
+                        <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded font-bold uppercase tracking-wider">Simulasi 2</span>
+                        <h4 class="font-bold text-sm mt-0.5">Simulasi Lonjakan Stres & Kortisol Keringat</h4>
+                        <p class="text-xs text-amber-100">PPG ke 128 BPM, Kortisol melonjak ke 24.5 ng/mL (Stres Akut Terdeteksi).</p>
+                    </div>
+                    <i class="fa-solid fa-bolt-lightning text-2xl opacity-80 group-hover:scale-110 transition-transform"></i>
+                </button>
+
+                <!-- Action 3: Low Signal / Connection Lost -->
+                <button onclick="triggerNetworkDropAction()" class="w-full p-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition text-left flex items-center justify-between text-xs">
+                    <span><i class="fa-solid fa-wifi mr-2 text-slate-500"></i> Simulasi Jaringan Terputus (Penyimpanan Sementara Event)</span>
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                </button>
+
+            </div>
+
+            <!-- Visual Haptic Feedback Test Indicator -->
+            <div id="haptic-feedback-box" class="mt-5 p-3 rounded-xl bg-slate-50 border border-slate-200 text-center transition">
+                <p id="haptic-status" class="text-xs font-semibold text-slate-500">Status Haptic Smartband: Idle</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Platform -->
+    <footer class="bg-white border-t border-skybrand-200 py-4 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500 flex flex-col md:flex-row justify-between items-center gap-2">
+            <div>
+                <strong class="text-skybrand-900">SERENA Platform</strong> &copy; 2026. Pengembangan Smartband Biometrik Terselubung Berbasis IoT dengan Multiplex Sweat Biosensor untuk Deteksi Dini Stres dan Perlindungan Darurat Tenaga Kerja Migran Perempuan.
+            </div>
+            <div class="flex space-x-4 text-slate-400">
+                <a href="#" class="hover:text-skybrand-600">Panduan Penggunaan</a>
+                <span>&bull;</span>
+                <a href="#" class="hover:text-skybrand-600">Protokol Keamanan Data</a>
+                <span>&bull;</span>
+                <a href="#" class="hover:text-skybrand-600">Kontak Bantuan Darurat</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // Global Data & 3D Variables
+        let bioChart;
+        let isSOSActive = false;
+        let scene, camera, renderer, armGroup, smartbandMesh, ppgBeam, sweatStream;
+        let is3DInitialized = false;
+
+        // Initialize Application on Window Load
+        window.onload = function() {
+            initBioMetricsChart();
+            startLiveBiometricSimulation();
+        };
+
+        // Tab Switching Function
+        function switchTab(tabName) {
+            // Hide all tab contents
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => content.classList.add('hidden'));
+
+            // Reset all tab button styles
+            const buttons = document.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('bg-skybrand-600', 'text-white', 'shadow-sm');
+                btn.classList.add('bg-white', 'text-slate-600', 'hover:bg-skybrand-100');
+            });
+
+            // Show selected tab content
+            const activeContent = document.getElementById('tab-' + tabName);
+            if (activeContent) {
+                activeContent.classList.remove('hidden');
+            }
+
+            // Highlight selected tab button
+            const activeBtn = document.getElementById('tab-btn-' + tabName);
+            if (activeBtn) {
+                activeBtn.classList.remove('bg-white', 'text-slate-600', 'hover:bg-skybrand-100');
+                activeBtn.classList.add('bg-skybrand-600', 'text-white', 'shadow-sm');
+            }
+
+            // Initialize 3D Engine when user opens Anatomy tab for the first time
+            if (tabName === 'anatomy' && !is3DInitialized) {
+                setTimeout(init3DRenderer, 100);
+            }
+        }
+
+        // Three.js 3D Arm & Smartband Renderer Initialization
+        function init3DRenderer() {
+            const container = document.getElementById('threeCanvas');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // Scene, Camera, Renderer setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x020617); // Slate-950 rich dark theme
+
+            camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+            camera.position.set(0, 1.2, 9.5);
+
+            renderer = new THREE.WebGLRenderer({ canvas: container, antialias: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(window.devicePixelRatio);
+
+            // Lighting System
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0x38bdf8, 1.8);
+            dirLight.position.set(5, 8, 5);
+            scene.add(dirLight);
+
+            const pointLight = new THREE.PointLight(0xf43f5e, 1.5, 12);
+            pointLight.position.set(-4, -2, 4);
+            scene.add(pointLight);
+
+            const cyanLight = new THREE.PointLight(0x06b6d4, 1.2, 10);
+            cyanLight.position.set(3, -3, -2);
+            scene.add(cyanLight);
+
+            // Group untuk seluruh Lengan dan Smartband
+            armGroup = new THREE.Group();
+
+            // 1. ANATOMI LENGAN MANUSIA (Human Forearm & Hand Representation)
+            const skinMat = new THREE.MeshStandardMaterial({ 
+                color: 0xe0ac69, 
+                roughness: 0.5,
+                metalness: 0.05
+            });
+
+            // Forearm
+            const forearmGeo = new THREE.CylinderGeometry(0.8, 0.95, 5.5, 32);
+            const forearm = new THREE.Mesh(forearmGeo, skinMat);
+            forearm.rotation.z = Math.PI / 2;
+            armGroup.add(forearm);
+
+            // Hand/Palm
+            const handGeo = new THREE.BoxGeometry(1.3, 0.55, 1.15);
+            const hand = new THREE.Mesh(handGeo, skinMat);
+            hand.position.set(3.0, 0, 0);
+            armGroup.add(hand);
+
+            // Thumb
+            const thumbGeo = new THREE.CylinderGeometry(0.18, 0.22, 0.85, 16);
+            const thumb = new THREE.Mesh(thumbGeo, skinMat);
+            thumb.rotation.z = -Math.PI / 4;
+            thumb.position.set(2.8, 0.45, 0.5);
+            armGroup.add(thumb);
+
+            // 2. KOMPONEN SMARTBAND SERENA
+            // Strap Metalic Premium
+            const strapGeo = new THREE.TorusGeometry(0.88, 0.16, 16, 60);
+            const strapMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.2, metalness: 0.8 });
+            smartbandMesh = new THREE.Mesh(strapGeo, strapMat);
+            smartbandMesh.rotation.y = Math.PI / 2;
+            smartbandMesh.position.set(0.5, 0, 0);
+            armGroup.add(smartbandMesh);
+
+            // Bodi Modul Utama (Display Capsule)
+            const capsuleGeo = new THREE.BoxGeometry(0.35, 0.55, 1.1);
+            const capsuleMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.1, metalness: 0.9 });
+            const capsule = new THREE.Mesh(capsuleGeo, capsuleMat);
+            capsule.position.set(0.5, 0.88, 0);
+            armGroup.add(capsule);
+
+            // Glass Screen
+            const glassGeo = new THREE.BoxGeometry(0.05, 0.48, 0.95);
+            const glassMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.0, metalness: 1.0, emissive: 0x0284c7, emissiveIntensity: 0.3 });
+            const glass = new THREE.Mesh(glassGeo, glassMat);
+            glass.position.set(0.67, 0.88, 0);
+            armGroup.add(glass);
+
+            // Tombol SOS Haptic Tersembunyi (Merah)
+            const sosBtnGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.12, 20);
+            const sosBtnMat = new THREE.MeshStandardMaterial({ color: 0xf43f5e, emissive: 0xe11d48, emissiveIntensity: 0.6 });
+            const sosBtn = new THREE.Mesh(sosBtnGeo, sosBtnMat);
+            sosBtn.position.set(0.5, 1.08, 0.28);
+            armGroup.add(sosBtn);
+
+            // 3. ILUSTRASI VISUAL BIOSENSOR & BEAM
+            // Sinyal PPG Optik (Hijau)
+            const ppgBeamGeo = new THREE.CylinderGeometry(0.08, 0.28, 0.65, 16);
+            const ppgBeamMat = new THREE.MeshBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0.8 });
+            ppgBeam = new THREE.Mesh(ppgBeamGeo, ppgBeamMat);
+            ppgBeam.position.set(0.5, 0.45, 0);
+            armGroup.add(ppgBeam);
+
+            // Stream Mikrofluidik Kortisol (Jalur Ungu Keringat)
+            const sweatGeo = new THREE.TorusGeometry(0.9, 0.04, 10, 40, Math.PI);
+            const sweatMat = new THREE.MeshStandardMaterial({ color: 0xc084fc, emissive: 0xa855f7, emissiveIntensity: 0.5, wireframe: true });
+            sweatStream = new THREE.Mesh(sweatGeo, sweatMat);
+            sweatStream.rotation.y = Math.PI / 2;
+            sweatStream.rotation.x = Math.PI;
+            sweatStream.position.set(0.5, 0, 0);
+            armGroup.add(sweatStream);
+
+            // Helper function to create 3D Arrow Callouts
+            function createAnnotatedArrow(colorHex, length = 1.2) {
+                const arrowGroup = new THREE.Group();
+                
+                // Arrow Shaft (Batang Panah)
+                const shaftGeo = new THREE.CylinderGeometry(0.02, 0.02, length, 12);
+                const shaftMat = new THREE.MeshBasicMaterial({ color: colorHex });
+                const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+                shaft.position.y = length / 2;
+                arrowGroup.add(shaft);
+
+                // Arrow Head (Kepala Panah)
+                const headGeo = new THREE.ConeGeometry(0.08, 0.2, 12);
+                const headMat = new THREE.MeshBasicMaterial({ color: colorHex });
+                const head = new THREE.Mesh(headGeo, headMat);
+                head.position.y = 0; // At tip pointing down
+                head.rotation.x = Math.PI; // Point down towards target
+                arrowGroup.add(head);
+
+                // Arrow Marker Ball (Bola Ujung)
+                const ballGeo = new THREE.SphereGeometry(0.06, 12, 12);
+                const ballMat = new THREE.MeshBasicMaterial({ color: colorHex });
+                const ball = new THREE.Mesh(ballGeo, ballMat);
+                ball.position.y = length;
+                arrowGroup.add(ball);
+
+                return arrowGroup;
+            }
+
+            // PANAH 1: MENUNJUK TOMBOL SOS (MERAH)
+            const arrowSOS = createAnnotatedArrow(0xf43f5e, 1.0);
+            arrowSOS.position.set(0.5, 1.2, 0.28); // Berada di atas tombol SOS
+            armGroup.add(arrowSOS);
+
+            // PANAH 2: MENUNJUK KANAL MIKROFLUIDIK (UNGU)
+            const arrowMicro = createAnnotatedArrow(0xc084fc, 1.1);
+            arrowMicro.rotation.z = Math.PI / 3;
+            arrowMicro.position.set(0.5, -0.9, -0.6); // Menunjuk dari bawah ke kanal
+            armGroup.add(arrowMicro);
+
+            // PANAH 3: MENUNJUK PPG SENSOR OPTIK (HIJAU)
+            const arrowPPG = createAnnotatedArrow(0x10b981, 1.0);
+            arrowPPG.rotation.z = -Math.PI / 4;
+            arrowPPG.position.set(0.5, 0.3, 0.8); // Menunjuk ke bawah bodi jam
+            armGroup.add(arrowPPG);
+
+            // Posisikan seluruh objek lengan
+            armGroup.rotation.y = -Math.PI / 5;
+            armGroup.rotation.x = 0.25;
+            scene.add(armGroup);
+
+            // Mouse Drag Interaction Logic
+            let isDragging = false;
+            let previousMousePosition = { x: 0, y: 0 };
+
+            container.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+
+            container.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const deltaMove = {
+                    x: e.clientX - previousMousePosition.x,
+                    y: e.clientY - previousMousePosition.y
+                };
+
+                armGroup.rotation.y += deltaMove.x * 0.01;
+                armGroup.rotation.x += deltaMove.y * 0.01;
+
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+
+            window.addEventListener('mouseup', () => { isDragging = false; });
+
+            // Render loop dengan efek pulsasi biosensor
+            let pulseTime = 0;
+            function animate3D() {
+                requestAnimationFrame(animate3D);
+                pulseTime += 0.05;
+
+                if (!isDragging) {
+                    armGroup.rotation.y += 0.0025; // Auto-rotation lambat
+                }
+
+                // Efek denyut gelombang optik PPG
+                if (ppgBeam) {
+                    ppgBeam.scale.set(1 + Math.sin(pulseTime * 3) * 0.2, 1, 1 + Math.sin(pulseTime * 3) * 0.2);
+                }
+
+                // Efek denyut rotasi ring mikrofluidik
+                if (sweatStream) {
+                    sweatStream.rotation.z += 0.005;
+                }
+
+                renderer.render(scene, camera);
+            }
+
+            animate3D();
+            is3DInitialized = true;
+        }
+
+        // Focus 3D View Components via Buttons
+        function focus3DComponent(type) {
+            const title = document.getElementById('3d-info-title');
+            const desc = document.getElementById('3d-info-desc');
+
+            if (type === 'sos') {
+                title.innerHTML = '<i class="fa-solid fa-arrow-down text-rose-500 mr-1.5"></i> Tombol SOS Haptic Tersembunyi';
+                desc.innerText = 'Panah merah menunjuk tepat ke Tombol SOS tersembunyi di atas modul. Memberikan getaran konfirmasi haptic senyap saat ditekan dalam bahaya.';
+                if(armGroup) { armGroup.rotation.set(0.4, -0.3, 0); }
+            } else if (type === 'micro') {
+                title.innerHTML = '<i class="fa-solid fa-arrow-up text-purple-400 mr-1.5"></i> Kanal Mikrofluidik Kortisol';
+                desc.innerText = 'Panah ungu menunjuk ke saluran mikrofluidik melingkar yang menyerap sampel keringat secara kontinu untuk mengukur fluks hormon kortisol (indikator stres).';
+                if(armGroup) { armGroup.rotation.set(-0.5, 1.2, 0); }
+            } else if (type === 'ppg') {
+                title.innerHTML = '<i class="fa-solid fa-arrow-left text-emerald-400 mr-1.5"></i> Sensor Optik PPG (Jantung/HRV)';
+                desc.innerText = 'Panah hijau menunjuk ke emitter optik PPG di bagian bawah smartband. Memancarkan cahaya hijau menembus kapiler darah untuk deteksi denyut & HRV.';
+                if(armGroup) { armGroup.rotation.set(0.1, 1.5, 0); }
+            }
+        }
+
+        function reset3DView() {
+            document.getElementById('3d-info-title').innerHTML = '<i class="fa-solid fa-circle-info mr-1.5"></i> Model Anatomi 3D & Panah Penunjuk';
+            document.getElementById('3d-info-desc').innerText = 'Putar model 3D menggunakan mouse/sentuhan. Panah-panah penunjuk berwarna dengan teks 3D secara presisi mengarahkan ke bagian biosensor dan komponen fisik smartband.';
+            if(armGroup) { armGroup.rotation.set(0.25, -Math.PI / 5, 0); }
+        }
+
+        // Hotline Call Trigger
+        function triggerCall(name, number) {
+            alert(`[MEMANGGIL HOTLINE DARURAT]\n\nMenghubungkan ke: ${name}\nNomor: ${number}\n\nPanggilan terhubung dalam mode aman.`);
+        }
+
+        // Reset SOP Checklist
+        function resetSOPChecklist() {
+            for (let i = 1; i <= 4; i++) {
+                document.getElementById('sop-' + i).checked = false;
+            }
+        }
+
+        // Bio Metrics Chart Creation (Chart.js)
+        function initBioMetricsChart() {
+            const ctx = document.getElementById('bioMetricsChart').getContext('2d');
+            bioChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['10:00', '10:05', '10:10', '10:15', '10:20', '10:25', '10:30'],
+                    datasets: [
+                        {
+                            label: 'Denyut Jantung (BPM)',
+                            data: [72, 75, 71, 74, 76, 73, 74],
+                            borderColor: '#0284c7',
+                            backgroundColor: 'rgba(2, 132, 199, 0.08)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Kortisol Keringat (ng/mL)',
+                            data: [8.0, 8.2, 8.1, 8.3, 8.2, 8.4, 8.2],
+                            borderColor: '#9333ea',
+                            backgroundColor: 'rgba(147, 51, 234, 0.05)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { font: { size: 11, family: 'Inter' } }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            min: 50,
+                            max: 140,
+                            title: { display: true, text: 'BPM', font: { size: 10 } },
+                            grid: { color: '#f1f5f9' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            min: 0,
+                            max: 35,
+                            title: { display: true, text: 'Kortisol (ng/mL)', font: { size: 10 } },
+                            grid: { drawOnChartArea: false }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Continuous Real-Time Simulation Updates
+        function startLiveBiometricSimulation() {
+            setInterval(() => {
+                if(!isSOSActive) {
+                    const randomBpm = 70 + Math.floor(Math.random() * 8);
+                    const randomHrv = 45 + Math.floor(Math.random() * 8);
+                    const randomCortisol = (8.0 + (Math.random() * 0.8)).toFixed(1);
+
+                    document.getElementById('hr-value').innerText = randomBpm;
+                    document.getElementById('hrv-value').innerText = randomHrv;
+                    document.getElementById('cortisol-value').innerText = randomCortisol;
+
+                    if(bioChart) {
+                        bioChart.data.datasets[0].data.shift();
+                        bioChart.data.datasets[0].data.push(randomBpm);
+
+                        bioChart.data.datasets[1].data.shift();
+                        bioChart.data.datasets[1].data.push(parseFloat(randomCortisol));
+
+                        bioChart.update('none');
+                    }
+                }
+            }, 3000);
+        }
+
+        // Action 1: Discreet SOS Trigger
+        function triggerSOSAction() {
+            isSOSActive = true;
+            toggleModal('sos-simulator-modal');
+
+            const hapticBox = document.getElementById('haptic-feedback-box');
+            const hapticStatus = document.getElementById('haptic-status');
+            hapticBox.classList.add('animate-haptic', 'bg-rose-100', 'border-rose-300');
+            hapticStatus.innerHTML = '<span class="text-rose-700 font-bold"><i class="fa-solid fa-vibrate animate-spin mr-1"></i> Smartband Getar Merekat (Silent SOS Pattern 2-2-2)</span>';
+
+            const topNotif = document.getElementById('top-notification');
+            topNotif.classList.remove('hidden');
+
+            document.getElementById('hr-value').innerText = '122';
+            document.getElementById('hrv-value').innerText = '21';
+            document.getElementById('cortisol-value').innerText = '22.8';
+
+            const cortisolStatus = document.getElementById('cortisol-status');
+            cortisolStatus.innerText = 'Lonjakan Tinggi';
+            cortisolStatus.className = 'inline-block mt-1 text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-bold';
+
+            const stressTag = document.getElementById('stress-index-tag');
+            stressTag.innerText = '(Tinggi)';
+            stressTag.className = 'text-xs font-bold text-rose-600 ml-1';
+
+            if(bioChart) {
+                bioChart.data.datasets[0].data.push(122);
+                bioChart.data.datasets[0].data.shift();
+                bioChart.data.datasets[1].data.push(22.8);
+                bioChart.data.datasets[1].data.shift();
+                bioChart.update();
+            }
+
+            const sosPin = document.getElementById('map-sos-pin');
+            if(sosPin) {
+                sosPin.style.top = '40%';
+                sosPin.style.left = '52%';
+            }
+
+            document.getElementById('alert-time-1').innerText = 'Diterima Baru Saja';
+
+            setTimeout(() => {
+                hapticBox.classList.remove('animate-haptic', 'bg-rose-100', 'border-rose-300');
+                hapticStatus.innerText = 'Status Haptic Smartband: Konfirmasi SOS Terkirim (Silent Pattern Completed)';
+            }, 3500);
+        }
+
+        // Action 2: Bio Anomaly Simulation
+        function triggerBioAnomalyAction() {
+            toggleModal('sos-simulator-modal');
+            document.getElementById('hr-value').innerText = '128';
+            document.getElementById('hrv-value').innerText = '16';
+            document.getElementById('cortisol-value').innerText = '25.4';
+
+            const cortisolStatus = document.getElementById('cortisol-status');
+            cortisolStatus.innerText = 'Stres Akut Terdeteksi';
+            cortisolStatus.className = 'inline-block mt-1 text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-bold';
+
+            const stressTag = document.getElementById('stress-index-tag');
+            stressTag.innerText = '(Kritis)';
+            stressTag.className = 'text-xs font-bold text-rose-600 ml-1';
+            
+            if(bioChart) {
+                bioChart.data.datasets[0].data.push(128);
+                bioChart.data.datasets[0].data.shift();
+                bioChart.data.datasets[1].data.push(25.4);
+                bioChart.data.datasets[1].data.shift();
+                bioChart.update();
+            }
+
+            alert('Peringatan Fisiologis Terpicu!\n\nSensor Mikrofluidik mencatat lonjakan Kortisol (25.4 ng/mL) disertai lonjakan PPG (128 BPM).\nSistem menandai kondisi ini sebagai tingkat stres fisiologis ekstrem.');
+        }
+
+        // Action 3: Network Drop Simulation
+        function triggerNetworkDropAction() {
+            const statusDot = document.getElementById('status-dot');
+            const pingDot = document.getElementById('ping-dot');
+            const connText = document.getElementById('conn-text');
+
+            statusDot.className = 'relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500';
+            pingDot.className = 'hidden';
+            connText.innerText = 'Koneksi Terputus (Buffer On)';
+            connText.className = 'text-xs font-semibold text-amber-700';
+
+            toggleModal('sos-simulator-modal');
+
+            setTimeout(() => {
+                alert('Sistem Smartband masuk ke mode offline. Data SOS atau Fisiologis akan disimpan sementara di memori internal perangkat hingga koneksi pulih.');
+            }, 300);
+        }
+
+        // Modal Toggle
+        function toggleModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.toggle('hidden');
+            }
+        }
+
+        // Haptic Feedback Self Test
+        function simulateHapticTest() {
+            alert('Mengirim sinyal getar uji coba ke Smartband SERENA... [Vibration Pattern: Gentle Reminder]');
+        }
+
+        // Dismiss Banner
+        function dismissNotif() {
+            document.getElementById('top-notification').classList.add('hidden');
+        }
+
+        // Create Case From Active SOS
+        function createCaseFromSOS() {
+            switchTab('cases');
+            const tableBody = document.getElementById('case-table-body');
+            const newRow = document.createElement('tr');
+            newRow.className = "hover:bg-rose-50/50 transition bg-rose-50/30";
+            newRow.innerHTML = `
+                <td class="p-3 font-bold text-rose-700">#CAS-2026-0902</td>
+                <td class="p-3">
+                    <div class="font-semibold text-slate-800">Siti Rahma</div>
+                    <div class="text-[11px] text-slate-400">Daan Dist, Taipei</div>
+                </td>
+                <td class="p-3">
+                    <span class="bg-rose-600 text-white px-2 py-0.5 rounded font-semibold text-[10px]">SOS HIGH PRIORITY</span>
+                </td>
+                <td class="p-3">
+                    <div class="font-medium text-slate-700">Tim Siaga Darurat Konsuler</div>
+                </td>
+                <td class="p-3">
+                    <span class="bg-rose-100 text-rose-800 px-2.5 py-1 rounded-full font-bold text-[10px] inline-flex items-center">
+                        <i class="fa-solid fa-bell animate-bounce mr-1"></i> Baru Dibuat
+                    </span>
+                </td>
+                <td class="p-3">
+                    <button onclick="viewCaseDetail('CAS-2026-0902')" class="text-rose-600 hover:text-rose-800 font-bold hover:underline">Koordinasikan Bantuan</button>
+                </td>
+            `;
+            tableBody.insertBefore(newRow, tableBody.firstChild);
+        }
+
+        function viewCaseDetail(caseId) {
+            alert('Membuka Rekam Log Kasus ' + caseId + '.\nAkses terbatas untuk Petugas Berwenang & Pendamping Terdaftar.');
+        }
+
+        function createNewCaseModal() {
+            alert('Form Pembuatan Kasus Baru Terbuka. Nomor Kasus Otomatis Dibuat oleh Sistem.');
+        }
+
+        function focusOnAlert(type) {
+            if(type === 'sos') {
+                switchTab('alerts');
+            }
+        }
+    </script>
+</body>
+</html>
